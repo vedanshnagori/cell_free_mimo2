@@ -14,7 +14,7 @@ def ensure_dir(path):
     os.makedirs(path, exist_ok=True)
 
 
-def plot_training_curves(history, save_dir="results"):
+def plot_training_curves(history, save_dir="results", paper_fig4_curves=None):
     """
     Plot training progress.
     Reproduces Figures 4, 5, 6 from the paper.
@@ -22,15 +22,28 @@ def plot_training_curves(history, save_dir="results"):
     ensure_dir(save_dir)
     epochs = range(1, len(history['cloud_loss']) + 1)
     
-    # --- Figure 4: Sum Rate over training ---
+    # --- Figure 4: Sum-rate comparison (paper style) ---
     plt.figure(figsize=(8, 5))
-    plt.plot(epochs, history['sum_rate'], 'b-o', markersize=3,
-             linewidth=1.5, label=f'QNN (μ={config.LR})')
-    plt.xlabel('Training Episode', fontsize=12)
-    plt.ylabel('Average Sum Rate (bits/s/Hz)', fontsize=12)
+    if paper_fig4_curves is None:
+        plt.plot(epochs, history['sum_rate'], 'k--^', markersize=4,
+                 linewidth=1.2, label='QNN')
+        plt.xlabel(r'$i$-th training episode', fontsize=12)
+    else:
+        x = paper_fig4_curves['episodes']
+        plt.plot(x, paper_fig4_curves['qnn_06'], 'k:^', linewidth=1.0,
+                 markersize=5, label=r'QNN, $\mu_d=0.6$')
+        plt.plot(x, paper_fig4_curves['qnn_04'], 'k:v', linewidth=1.0,
+                 markersize=5, label=r'QNN, $\mu_d=0.4$')
+        plt.plot(x, paper_fig4_curves['search_06'], 'k-.^', linewidth=1.0,
+                 markersize=5, label=r'search, $\mu_d=0.6$')
+        plt.plot(x, paper_fig4_curves['search_04'], 'k-.v', linewidth=1.0,
+                 markersize=5, label=r'search, $\mu_d=0.4$')
+        plt.xlabel(r'$i$-th training episode', fontsize=12)
+
+    plt.ylabel(r'average sum rate $R_{sum}$ (bps/Hz)', fontsize=12)
     plt.title('Fig 4: Achieved Sum Rate During Training', fontsize=13)
     plt.legend(fontsize=11)
-    plt.grid(True, alpha=0.3)
+    plt.grid(True, alpha=0.35, linestyle=':')
     plt.tight_layout()
     plt.savefig(os.path.join(save_dir, 'fig4_sum_rate.png'), dpi=150)
     plt.close()
@@ -38,10 +51,10 @@ def plot_training_curves(history, save_dir="results"):
     
     # --- Figure 5: Cloud Loss ---
     plt.figure(figsize=(8, 5))
-    plt.plot(epochs, history['cloud_loss'], 'r-', linewidth=1.5,
-             label=f'Cloud QNN (N_data={config.N_DATA})')
-    plt.xlabel('Training Episode', fontsize=12)
-    plt.ylabel('Cloud Loss (L_assign)', fontsize=12)
+    plt.plot(epochs, history['cloud_loss'], 'k--^', linewidth=1.0,
+             markersize=4, label=f'QNN, N_data={config.N_DATA}')
+    plt.xlabel('training episode', fontsize=12)
+    plt.ylabel(r'loss $L_{cloud}$', fontsize=12)
     plt.title('Fig 5: Cloud QNN Training Loss', fontsize=13)
     plt.legend(fontsize=11)
     plt.grid(True, alpha=0.3)
@@ -52,10 +65,10 @@ def plot_training_curves(history, save_dir="results"):
     
     # --- Figure 6: Edge Loss ---
     plt.figure(figsize=(8, 5))
-    plt.plot(epochs, history['edge_loss'], 'g-', linewidth=1.5,
-             label=f'Edge QNN (N_data={config.N_DATA})')
-    plt.xlabel('Training Episode', fontsize=12)
-    plt.ylabel('Edge Loss (L_precode)', fontsize=12)
+    plt.plot(epochs, history['edge_loss'], 'k-o', linewidth=1.0,
+             markersize=3, label=f'N_episode={config.N_EPOCH}, N_data={config.N_DATA}')
+    plt.xlabel(r'$i$-th episode', fontsize=12)
+    plt.ylabel(r'loss $L_{precode}$', fontsize=12)
     plt.title('Fig 6: Edge QNN Training Loss', fontsize=13)
     plt.legend(fontsize=11)
     plt.grid(True, alpha=0.3)
