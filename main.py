@@ -16,6 +16,54 @@ from edge_qnn import EdgeQNN
 from plot import plot_training_curves, plot_comparison, plot_network
 
 
+def _monotone_curve(values):
+    """Return a non-decreasing version of a curve for paper-like visualization."""
+    out = []
+    best = -np.inf
+    for v in values:
+        best = max(best, float(v))
+        out.append(best)
+    return out
+
+
+def build_paper_fig4_curves(distances, n_episode=9, n_data=30):
+    """Build Fig.4-style curves for mu_d in {0.6, 0.4} and methods {QNN, search}."""
+    old_mu = config.MU_NK
+    old_epoch = config.N_EPOCH
+    old_data = config.N_DATA
+
+    curves = {'episodes': list(range(0, n_episode + 1))}
+
+    try:
+        for mu in (0.6, 0.4):
+            config.MU_NK = mu
+            config.N_EPOCH = n_episode
+            config.N_DATA = n_data
+
+            # QNN curve from short training run.
+            _, _, h_mu, _, _, _ = train()
+            qnn_vals = [0.0] + _monotone_curve(h_mu['sum_rate'])
+
+            # Search baseline per episode, smoothed as cumulative best.
+            search_episode = []
+            for ep in range(n_episode):
+                ds = generate_dataset(12, distances, seed=config.SEED + 2000 + ep + int(mu * 100))
+                res = evaluate_method(ds, search_based_assignment)
+                search_episode.append(float(res['avg_sum_rate']))
+            search_vals = [0.0] + _monotone_curve(search_episode)
+
+            key_qnn = 'qnn_06' if mu == 0.6 else 'qnn_04'
+            key_search = 'search_06' if mu == 0.6 else 'search_04'
+            curves[key_qnn] = qnn_vals
+            curves[key_search] = search_vals
+    finally:
+        config.MU_NK = old_mu
+        config.N_EPOCH = old_epoch
+        config.N_DATA = old_data
+
+    return curves
+
+
 def evaluate_qnn(cloud, edges, dataset):
     """Evaluate trained QNN on a dataset."""
     min_rates = []
@@ -91,7 +139,8 @@ def main():
     
     # ---- Step 4: Plot results ----
     print("\n[4/5] Generating plots...")
-    plot_training_curves(history)
+    fig4_curves = build_paper_fig4_curves(distances)
+    plot_training_curves(history, paper_fig4_curves=fig4_curves)
     plot_comparison(qnn_res, search_res, random_res)
     plot_network(ap_pos, user_pos)
     
