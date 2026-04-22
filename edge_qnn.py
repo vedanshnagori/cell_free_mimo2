@@ -108,16 +108,20 @@ class EdgeQNN:
     
     def prepare_features(self, H):
         """
-        Extract local channel features for this AP.
-        
-        Takes the average channel magnitude to each user,
-        scaled to [0, 2π] for RZ encoding.
+        Extract local channel features for this AP (Eq. 19).
+
+        Each qubit k encodes the total received power from this AP to
+        user k: ‖h_{m,k}‖² normalised to [0, 2π].  Using the squared
+        2-norm rather than the mean magnitude preserves relative power
+        differences between users more faithfully.
         """
-        features = np.array([
-            np.abs(H[(self.ap_index, k)]).mean() * 2 * np.pi
+        powers = np.array([
+            # Use squared 2-norm (channel power) directly to avoid sqrt + square
+            float(np.vdot(H[(self.ap_index, k)], H[(self.ap_index, k)]).real)
             for k in range(config.N_USER)
         ])
-        return features
+        max_power = np.max(powers) + 1e-10
+        return 2 * np.pi * powers / max_power
     
     def decode_precoding(self, output):
         """

@@ -94,10 +94,11 @@ def generate_channel(distances):
                     # Scale by distance-based strength
                     random_gain *= np.sqrt(channel_strength)
                     
-                    # Random phase from antenna array
-                    angle = np.random.uniform(0, 2 * np.pi)
+                    # Random physical angle: sine of arrival angle ∈ [-1, 1]
+                    # (ULA steering vector uses sin(θ), not the angle itself)
+                    angle = np.random.uniform(-1, 1)
                     z = j - 0.5 * (config.N_TX - 1)
-                    steering = np.exp(-1j * 2 * np.pi * angle * z)
+                    steering = np.exp(-1j * np.pi * angle * z)
                     
                     h_mk[j] += random_gain * steering
                 
