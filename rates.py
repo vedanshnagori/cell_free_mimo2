@@ -15,6 +15,46 @@ import numpy as np
 import config
 
 
+def compute_phi_precode(H, m):
+    """
+    Compute Φ_precode(ĥ_m) for a single AP m (Eq. 18).
+
+    This is the eigenvalue-based reference performance:
+        Φ_precode(ĥ_m) = -Σ_i log2(1 + λ_i^[m] / N_λ · ρ)
+
+    λ_i^[m] are the eigenvalues of H_m H_m^H where
+    H_m = [h_{m,0}, …, h_{m,K-1}] ∈ ℂ^{N_TX × N_USER}.
+
+    Returns a negative float (serves as a performance upper-bound
+    reference: Q_precode should approach Φ_precode as training improves).
+    """
+    H_m = np.zeros((config.N_TX, config.N_USER), dtype=complex)
+    for k in range(config.N_USER):
+        H_m[:, k] = H[(m, k)]
+
+    eigenvalues = np.linalg.eigvalsh(H_m @ H_m.conj().T)
+    eigenvalues = np.maximum(eigenvalues, 0)
+    N_lam = max(len(eigenvalues), 1)
+
+    total = 0.0
+    for lam in eigenvalues:
+        total -= np.log2(1.0 + float(lam) / N_lam * config.RHO)
+
+    return total
+
+
+def compute_phi_assign(H):
+    """
+    Compute Φ_assign(Ĥ) (Eq. 14).
+
+    Sum of Φ_precode over all APs:
+        Φ_assign(Ĥ) = Σ_m Φ_precode(ĥ_m)
+
+    Returns a negative float.
+    """
+    return sum(compute_phi_precode(H, m) for m in range(config.N_AP))
+
+
 def compute_mr_precoding(H):
     """
     Maximum Ratio precoding: point the beam toward the user.

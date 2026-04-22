@@ -57,36 +57,34 @@ class CloudQNN:
     def _connect(self, params):
         """
         Connection operation (Eq. 12).
-        
-        For each layer:
-          1. RY(θ) on each qubit — TRAINABLE weights
-          2. CZ between adjacent qubits in same layer — entanglement
-          3. CX from last qubit of layer to first of next — layer connection
-        
-        This is like a neural network:
-          RY = weights
-          CZ = connections within a layer  
-          CX = connections between layers
+
+        Global gate ordering as in the paper:
+          U_connect = U_CX · U_CZ · U_RY
+
+        Applied to the state in this order (leftmost = first applied):
+          1. All RY(θ) across every qubit in every layer — TRAINABLE weights
+          2. All CZ chains within each layer                — intra-layer entanglement
+          3. All CX links from last qubit of layer l to
+             first qubit of layer l+1                      — inter-layer connections
         """
+        # Step 1: All RY rotations (all layers, all neurons) — applied first
         for l in range(self.n_layers):
-            # Step 1: Trainable RY rotations (the "weights")
             for n in range(self.n_neurons):
                 qubit = l * self.n_neurons + n
                 qml.RY(params[l, n], wires=qubit)
-            
-            # Step 2: CZ entanglement within the layer
-            # Connect adjacent neurons: q0-q1, q1-q2, q2-q3
+
+        # Step 2: CZ chains within every layer — applied second
+        for l in range(self.n_layers):
             for n in range(self.n_neurons - 1):
                 q1 = l * self.n_neurons + n
                 q2 = l * self.n_neurons + n + 1
                 qml.CZ(wires=[q1, q2])
-            
-            # Step 3: CX connection to next layer
-            # Last qubit of this layer → first qubit of next layer
-            if l < self.n_layers - 1:
-                q_last = l * self.n_neurons + self.n_neurons - 1
-                q_next_first = (l + 1) * self.n_neurons
-                qml.CNOT(wires=[q_last, q_next_first])
+
+        # Step 3: CX inter-layer connections — applied last
+        for l in range(self.n_layers - 1):
+            q_last = l * self.n_neurons + self.n_neurons - 1
+            q_next_first = (l + 1) * self.n_neurons
+            qml.CNOT(wires=[q_last, q_next_first])
     
     def _circuit(self, params, features):
         """
@@ -117,14 +115,19 @@ class CloudQNN:
     
     def prepare_features(self, H_matrix):
         """
-        Convert channel feature matrix into QNN input.
-        
-        Takes the magnitude of channel features and
-        normalizes to [0, 2π] for RZ encoding.
+        Convert channel feature matrix into QNN input (Eq. 11).
+
+        H_matrix already contains interleaved real and imaginary parts
+        (from channel_to_features).  We normalise the raw values to
+        [0, 2π] so they can be used directly as RZ rotation angles,
+        preserving sign/phase information (negative values map to the
+        lower half of [0, π], positive values to the upper half).
         """
-        flat = np.abs(H_matrix).flatten()
-        max_val = np.max(flat) + 1e-10
-        return 2 * np.pi * flat / max_val
+        flat = H_matrix.flatten()
+        min_val = np.min(flat)
+        max_val = np.max(flat)
+        rng = max_val - min_val + 1e-10
+        return 2 * np.pi * (flat - min_val) / rng
     
     def decode_assignment(self, probs):
         """
