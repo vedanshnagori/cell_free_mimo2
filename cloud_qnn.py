@@ -126,8 +126,8 @@ class CloudQNN:
         flat = H_matrix.flatten()
         min_val = np.min(flat)
         max_val = np.max(flat)
-        rng = max_val - min_val + 1e-10
-        return 2 * np.pi * (flat - min_val) / rng
+        value_range = max_val - min_val + 1e-10
+        return 2 * np.pi * (flat - min_val) / value_range
     
     def decode_assignment(self, probs):
         """

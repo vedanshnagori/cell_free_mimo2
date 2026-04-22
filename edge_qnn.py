@@ -116,7 +116,8 @@ class EdgeQNN:
         differences between users more faithfully.
         """
         powers = np.array([
-            float(np.linalg.norm(H[(self.ap_index, k)]) ** 2)
+            # Use squared 2-norm (channel power) directly to avoid sqrt + square
+            float(np.vdot(H[(self.ap_index, k)], H[(self.ap_index, k)]).real)
             for k in range(config.N_USER)
         ])
         max_power = np.max(powers) + 1e-10

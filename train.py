@@ -275,11 +275,16 @@ def _gain_from_outputs(outputs, h_mk):
         Re(h^H v_unnorm) = a·e0 + b·e1 + c·e2
         Im(h^H v_unnorm) = a·e1 − b·e0 − d·e2
     """
-    e0, e1 = outputs[0], outputs[1]
+    # N_USER = 3 qubits always produces exactly 3 outputs; the guard below
+    # handles any future configuration change (e.g. N_USER < 3).
+    e0 = outputs[0]
+    e1 = outputs[1]
     e2 = outputs[2] if len(outputs) > 2 else 0.0
 
-    a = float(np.real(h_mk[0])); b = float(np.imag(h_mk[0]))
-    c = float(np.real(h_mk[1])); d = float(np.imag(h_mk[1]))
+    a = float(np.real(h_mk[0]))
+    b = float(np.imag(h_mk[0]))
+    c = float(np.real(h_mk[1]))
+    d = float(np.imag(h_mk[1]))
 
     re_inner = a * e0 + b * e1 + c * e2
     im_inner = a * e1 - b * e0 - d * e2
